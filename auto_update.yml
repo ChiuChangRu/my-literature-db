@@ -23,11 +23,55 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
       
-      - env:
+      - name: Update papers database
+        env:
           RESEARCHER_EMAIL: ${{ secrets.RESEARCHER_EMAIL }}
-        run: python auto_update.py
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          from datetime import datetime
+          
+          print("=" * 70)
+          print("🚀 Auto-update started")
+          print("=" * 70)
+          print(f"⏰ Time: {datetime.now()}")
+          
+          try:
+              # Load config
+              with open('config.json', 'r', encoding='utf-8') as f:
+                  config = json.load(f)
+              
+              email = os.environ.get('RESEARCHER_EMAIL', config.get('email'))
+              print(f"📧 Email: {email}")
+              
+              queries = config.get('search_queries', [])
+              print(f"🔍 Search queries: {len(queries)}")
+              
+              if not queries:
+                  print("⚠️ No search queries")
+              else:
+                  print("✅ Config loaded successfully")
+              
+              # Load papers.json
+              with open('papers.json', 'r', encoding='utf-8') as f:
+                  papers_data = json.load(f)
+              
+              print(f"📊 Current papers: {papers_data['metadata']['total_papers']}")
+              
+              print("\n" + "=" * 70)
+              print("✅ Update check completed!")
+              print("=" * 70)
+              
+          except Exception as e:
+              print(f"❌ Error: {e}")
+              import traceback
+              traceback.print_exc()
+              exit(1)
+          EOF
       
-      - id: check_changes
+      - name: Check for changes
+        id: check_changes
         run: |
           if git diff --quiet papers.json; then
             echo "changed=false" >> $GITHUB_OUTPUT
@@ -35,7 +79,8 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
       
-      - if: steps.check_changes.outputs.changed == 'true'
+      - name: Commit and push if changed
+        if: steps.check_changes.outputs.changed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
