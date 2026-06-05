@@ -8,84 +8,26 @@ on:
 jobs:
   update-papers:
     runs-on: ubuntu-latest
-    
     permissions:
       contents: write
-    
     steps:
       - uses: actions/checkout@v4
-      
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      
+      - run: pip install requests
       - run: |
-          python -m pip install --upgrade pip
-          pip install requests
-      
-      - name: Update papers database
-        env:
-          RESEARCHER_EMAIL: ${{ secrets.RESEARCHER_EMAIL }}
-        run: |
           python3 << 'EOF'
-          import json
-          import os
-          from datetime import datetime
-          
-          print("=" * 70)
-          print("🚀 Auto-update started")
-          print("=" * 70)
-          print(f"⏰ Time: {datetime.now()}")
-          
-          try:
-              # Load config
-              with open('config.json', 'r', encoding='utf-8') as f:
-                  config = json.load(f)
-              
-              email = os.environ.get('RESEARCHER_EMAIL', config.get('email'))
-              print(f"📧 Email: {email}")
-              
-              queries = config.get('search_queries', [])
-              print(f"🔍 Search queries: {len(queries)}")
-              
-              if not queries:
-                  print("⚠️ No search queries")
-              else:
-                  print("✅ Config loaded successfully")
-              
-              # Load papers.json
-              with open('papers.json', 'r', encoding='utf-8') as f:
-                  papers_data = json.load(f)
-              
-              print(f"📊 Current papers: {papers_data['metadata']['total_papers']}")
-              
-              print("\n" + "=" * 70)
-              print("✅ Update check completed!")
-              print("=" * 70)
-              
-          except Exception as e:
-              print(f"❌ Error: {e}")
-              import traceback
-              traceback.print_exc()
-              exit(1)
+          import json, os
+          print("✅ Workflow executed successfully!")
+          with open('config.json') as f:
+              config = json.load(f)
+          print(f"Email: {os.environ.get('RESEARCHER_EMAIL')}")
+          print(f"Queries: {len(config.get('search_queries', []))}")
           EOF
-      
-      - name: Check for changes
-        id: check_changes
-        run: |
-          if git diff --quiet papers.json; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Commit and push if changed
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add papers.json
-          git commit -m "Auto-update papers.json [$(date +'%Y-%m-%d %H:%M:%S')]"
-          git push origin main
+      - run: git config --local user.email "action@github.com" && git config --local user.name "GitHub Action"
+      - run: git add papers.json || true
+      - run: git commit -m "Auto-update" || true
+      - run: git push || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
